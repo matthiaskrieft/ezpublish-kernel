@@ -38,9 +38,9 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
     protected $eventDispatcher;
 
     /**
-     * @var \PHPUnit_Framework_MockObject_MockObject
+     * @var \Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface|\PHPUnit_Framework_MockObject_MockObject
      */
-    protected $securityContext;
+    protected $tokenStorage;
 
     /**
      * @var \eZ\Publish\Core\MVC\Symfony\Security\EventListener\SecurityListener
@@ -53,7 +53,7 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
         $this->repository = $this->getMock( 'eZ\Publish\API\Repository\Repository' );
         $this->configResolver = $this->getMock( 'eZ\Publish\Core\MVC\ConfigResolverInterface' );
         $this->eventDispatcher = $this->getMock( 'Symfony\Component\EventDispatcher\EventDispatcherInterface' );
-        $this->securityContext = $this->getMock( 'Symfony\Component\Security\Core\SecurityContextInterface' );
+        $this->tokenStorage = $this->getMock( 'Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface' );
         $this->listener = $this->generateListener();
     }
 
@@ -63,7 +63,7 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             $this->repository,
             $this->configResolver,
             $this->eventDispatcher,
-            $this->securityContext
+            $this->tokenStorage
         );
     }
 
@@ -158,7 +158,7 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             ->method( 'setCurrentUser' )
             ->with( $apiUser );
 
-        $this->securityContext
+        $this->tokenStorage
             ->expects( $this->once() )
             ->method( 'setToken' )
             ->with( $this->isInstanceOf( 'eZ\Publish\Core\MVC\Symfony\Security\InteractiveLoginToken' ) );
@@ -182,10 +182,10 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
         $siteAccess = new SiteAccess();
         $request->attributes->set( 'siteaccess', $siteAccess );
 
-        $this->securityContext
+        $this->repository
             ->expects( $this->once() )
-            ->method( 'isGranted' )
-            ->with( $this->equalTo( new Attribute( 'user', 'login', array( 'valueObject' => $siteAccess ) ) ) )
+            ->method( 'canUser' )
+            ->with( 'user', 'login', $siteAccess )
             ->will( $this->returnValue( false ) );
 
         $this->listener->checkSiteAccessPermission( new BaseInteractiveLoginEvent( $request, $token ) );
@@ -204,10 +204,10 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
         $siteAccess = new SiteAccess();
         $request->attributes->set( 'siteaccess', $siteAccess );
 
-        $this->securityContext
+        $this->repository
             ->expects( $this->once() )
-            ->method( 'isGranted' )
-            ->with( $this->equalTo( new Attribute( 'user', 'login', array( 'valueObject' => $siteAccess ) ) ) )
+            ->method( 'canUser' )
+            ->with( 'user', 'login', $siteAccess )
             ->will( $this->returnValue( true ) );
 
         // Nothing should happen or should be returned.
@@ -227,9 +227,9 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
         $siteAccess = new SiteAccess();
         $request->attributes->set( 'siteaccess', $siteAccess );
 
-        $this->securityContext
+        $this->repository
             ->expects( $this->never() )
-            ->method( 'isGranted' );
+            ->method( 'canUser' );
 
         $this->listener->checkSiteAccessPermission( new BaseInteractiveLoginEvent( $request, $token ) );
     }
@@ -243,9 +243,9 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             ->method( 'getUser' )
             ->will( $this->returnValue( $user ) );
 
-        $this->securityContext
+        $this->repository
             ->expects( $this->never() )
-            ->method( 'isGranted' );
+            ->method( 'canUser' );
 
         $this->listener->checkSiteAccessPermission( new BaseInteractiveLoginEvent( new Request(), $token ) );
     }
@@ -258,12 +258,12 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             HttpKernelInterface::SUB_REQUEST
         );
 
-        $this->securityContext
+        $this->tokenStorage
             ->expects( $this->never() )
             ->method( 'getToken' );
-        $this->securityContext
+        $this->repository
             ->expects( $this->never() )
-            ->method( 'isGranted' );
+            ->method( 'canUser' );
 
         $this->listener->onKernelRequest( $event );
     }
@@ -279,12 +279,12 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             ->expects( $this->never() )
             ->method( 'getParameter' );
 
-        $this->securityContext
+        $this->tokenStorage
             ->expects( $this->never() )
             ->method( 'getToken' );
-        $this->securityContext
+        $this->repository
             ->expects( $this->never() )
-            ->method( 'isGranted' );
+            ->method( 'canUser' );
 
         $this->listener->onKernelRequest( $event );
     }
@@ -297,12 +297,12 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             HttpKernelInterface::MASTER_REQUEST
         );
 
-        $this->securityContext
+        $this->tokenStorage
             ->expects( $this->never() )
             ->method( 'getToken' );
-        $this->securityContext
+        $this->repository
             ->expects( $this->never() )
-            ->method( 'isGranted' );
+            ->method( 'canUser' );
 
         $this->listener->onKernelRequest( $event );
     }
@@ -317,13 +317,13 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             HttpKernelInterface::MASTER_REQUEST
         );
 
-        $this->securityContext
+        $this->tokenStorage
             ->expects( $this->once() )
             ->method( 'getToken' )
             ->will( $this->returnValue( null ) );
-        $this->securityContext
+        $this->repository
             ->expects( $this->never() )
-            ->method( 'isGranted' );
+            ->method( 'canUser' );
 
         $this->listener->onKernelRequest( $event );
     }
@@ -339,13 +339,13 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             HttpKernelInterface::MASTER_REQUEST
         );
 
-        $this->securityContext
+        $this->tokenStorage
             ->expects( $this->once() )
             ->method( 'getToken' )
             ->will( $this->returnValue( null ) );
-        $this->securityContext
+        $this->repository
             ->expects( $this->never() )
-            ->method( 'isGranted' );
+            ->method( 'canUser' );
 
         $this->listener->onKernelRequest( $event );
     }
@@ -368,13 +368,13 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             ->method( 'getUsername' )
             ->will( $this->returnValue( 'foo' ) );
 
-        $this->securityContext
+        $this->tokenStorage
             ->expects( $this->once() )
             ->method( 'getToken' )
             ->will( $this->returnValue( $token ) );
-        $this->securityContext
+        $this->repository
             ->expects( $this->once() )
-            ->method( 'isGranted' )
+            ->method( 'canUser' )
             ->will( $this->returnValue( false ) );
 
         $this->listener->onKernelRequest( $event );
@@ -396,13 +396,13 @@ class SecurityListenerTest extends PHPUnit_Framework_TestCase
             ->method( 'getUsername' )
             ->will( $this->returnValue( 'foo' ) );
 
-        $this->securityContext
+        $this->tokenStorage
             ->expects( $this->once() )
             ->method( 'getToken' )
             ->will( $this->returnValue( $token ) );
-        $this->securityContext
+        $this->repository
             ->expects( $this->once() )
-            ->method( 'isGranted' )
+            ->method( 'canUser' )
             ->will( $this->returnValue( true ) );
 
         // Nothing should happen or should be returned.
