@@ -10,8 +10,6 @@ matrix:
   fast_finish: true
   # misc nighlty tests we keep an eye on and aim to fix closer to stable versions
   allow_failures:
-    - php: 5.5
-      env: TEST_CONFIG="phpunit.xml" SYMFONY_VERSION="~2.7@dev"
     - php: hhvm-nightly
       env: TEST_CONFIG="phpunit.xml"
     - php: nightly
@@ -26,7 +24,7 @@ matrix:
       env: SOLR_VERSION="4.10.1" TEST_CONFIG="phpunit-integration-legacy-solr.xml"
 # 5.5
     - php: 5.5
-      env: TEST_CONFIG="phpunit.xml" SYMFONY_VERSION="~2.7@dev"
+      env: TEST_CONFIG="phpunit.xml" SYMFONY_VERSION="~2.7@beta"
     - php: 5.5
       env: TEST_CONFIG="phpunit-integration-legacy.xml" DB="mysql" DATABASE="mysql://root@localhost/$DB_NAME"
     - php: 5.5
